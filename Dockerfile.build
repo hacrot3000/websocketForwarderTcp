@@ -1,0 +1,55 @@
+# Dockerfile để build portforward cho CentOS 6
+# Base image: CentOS 6 (end-of-life, sử dụng vault repository)
+FROM centos:6
+
+# Build arguments
+ARG BUILD_TYPE=debug
+
+# Configure CentOS 6 vault repositories (vì EOL)
+RUN sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-Base.repo && \
+    sed -i 's|#baseurl=http://mirror.centos.org/centos/$releasever|baseurl=http://vault.centos.org/6.10|g' /etc/yum.repos.d/CentOS-Base.repo && \
+    sed -i 's/enabled=1/enabled=0/g' /etc/yum/pluginconf.d/fastestmirror.conf || true
+
+# Install build dependencies
+RUN yum clean all && \
+    yum install -y gcc make openssl-devel
+
+# Set working directory
+WORKDIR /build
+
+# Copy source files
+COPY portforward.c portforward_const.h Makefile Makefile.docker build.sh ./
+
+# Build the application - try Makefile.docker first, then fallback
+RUN if [ -f Makefile.docker ]; then \
+        cp Makefile.docker Makefile && \
+        make clean && \
+        if [ "$BUILD_TYPE" = "release" ]; then \
+            make CFLAGS="-Wall -Wextra -O2 -std=c99 -DNDEBUG -DNO_DEBUG_OUTPUT"; \
+        else \
+            make CFLAGS="-Wall -Wextra -O2 -g -std=c99 -D_GNU_SOURCE"; \
+        fi; \
+    elif [ -f build.sh ]; then \
+        chmod +x build.sh && \
+        if [ "$BUILD_TYPE" = "release" ]; then \
+            ./build.sh --release; \
+        else \
+            ./build.sh; \
+        fi; \
+    else \
+        make clean && \
+        if [ "$BUILD_TYPE" = "release" ]; then \
+            make CFLAGS="-Wall -Wextra -O2 -std=c99 -DNDEBUG -DNO_DEBUG_OUTPUT"; \
+        else \
+            make CFLAGS="-Wall -Wextra -O2 -g -std=c99 -D_GNU_SOURCE"; \
+        fi; \
+    fi
+
+# Verify the build
+RUN ls -lh ./portforward && \
+    ldd ./portforward 2>/dev/null | grep -E "(ssl|crypto)" || true && \
+    file ./portforward && \
+    echo "OpenSSL version check:" && \
+    strings ./portforward | grep -i "openssl" | head -3 || true
+
+# The built binary will be in /build/portforward

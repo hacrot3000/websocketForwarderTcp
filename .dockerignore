@@ -1,0 +1,8 @@
+*.o
+portforward
+*.md
+.git
+.gitignore
+Dockerfile.*
+docker-build.sh
+BUILD.md

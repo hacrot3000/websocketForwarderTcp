@@ -1,0 +1,28 @@
+# Makefile build inside Docker
+# Tương thích với CentOS 6 / OpenSSL 1.0.1e
+
+CC = gcc
+CFLAGS = -Wall -Wextra -O2 -g -std=c99 -D_GNU_SOURCE -Wno-deprecated-declarations
+
+# Direct link to OpenSSL 1.0.1e libraries
+LDFLAGS = -L/usr/lib64 -Wl,-rpath,/usr/lib64 \
+          /usr/lib64/libssl.so.10 /usr/lib64/libcrypto.so.10
+
+TARGET = portforward
+SRCS = portforward.c
+OBJS = $(SRCS:.c=.o)
+
+all: $(TARGET)
+
+$(TARGET): $(OBJS)
+	$(CC) $(CFLAGS) -o $(TARGET) $(OBJS) $(LDFLAGS)
+	@echo "Build complete in Docker container"
+	@ldd $(TARGET) 2>/dev/null | grep -E "(ssl|crypto)" || true
+
+%.o: %.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+clean:
+	rm -f $(OBJS) $(TARGET)
+
+.PHONY: all clean
