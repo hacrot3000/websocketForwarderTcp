@@ -1,0 +1,8 @@
+# Force GitHub to detect the repo as C
+*.c linguist-language=C
+*.h linguist-language=C
+
+# Ignore build artifacts and scripts
+*.sh linguist-vendored
+*.o linguist-vendored
+Makefile linguist-vendored
